@@ -1,6 +1,6 @@
 import socket
 import threading
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, jsonify
 
 # TCP and Flask settings
 TCP_HOST = '0.0.0.0'
@@ -11,9 +11,8 @@ FLASK_PORT = 5001
 app = Flask(__name__)
 
 # Global data store
-vehicles = {}  # {IMEI: {'lat': lat, 'lng': lng, 'last_command': cmd}}
+vehicles = {}  # {IMEI: {'lat': lat, 'lng': lng, 'status': status, 'battery': battery}}
 logs = []      # Keeps logs for web display
-connections = {}  # {IMEI: socket}
 
 # TCP Server Logic
 def tcp_server():
@@ -41,20 +40,34 @@ def handle_client(client_socket, addr):
                 print(f"Received: {data}")
                 logs.append(f"Received: {data}")
 
-                # Send acknowledgment to client
-                client_socket.sendall(f"Command received: {data}\n".encode())
-
-                # Handle received commands (example: '*SCOR,OM,123456789123456,D0,...#')
+                # Handle received commands (example: '*SCOR,OM,123456789123456,Q0,...#')
                 if data.startswith("*SCOR"):
                     parts = data.split(',')
                     imei = parts[2]
                     command_type = parts[3]
 
-                    if command_type == 'D0':  # Positioning command
-                        lat = convert_coordinates(parts[5], parts[6])
-                        lng = convert_coordinates(parts[7], parts[8])
-                        vehicles[imei] = {'lat': lat, 'lng': lng, 'last_command': command_type}
-                        logs.append(f"Updated IMEI {imei}: lat={lat}, lng={lng}")
+                    if command_type == 'Q0':  # Registration command
+                        battery = int(parts[4]) / 100.0
+                        signal = int(parts[6])
+                        vehicles[imei] = {'status': 'registered', 'battery': battery, 'signal': signal}
+                        logs.append(f"Device registered: IMEI={imei}, Battery={battery}V, Signal={signal}")
+
+                    elif command_type == 'H0':  # Heartbeat command
+                        status = 'locked' if parts[4] == '1' else 'unlocked'
+                        battery = int(parts[5]) / 100.0
+                        signal = int(parts[6])
+                        vehicles[imei].update({'status': status, 'battery': battery, 'signal': signal})
+                        logs.append(f"Heartbeat: IMEI={imei}, Status={status}, Battery={battery}V, Signal={signal}")
+
+                    elif command_type == 'D0':  # Positioning command
+                        if parts[6] == 'A':  # Valid positioning
+                            lat = convert_coordinates(parts[7], parts[8])
+                            lng = convert_coordinates(parts[9], parts[10])
+                            vehicles[imei].update({'lat': lat, 'lng': lng})
+                            logs.append(f"Position updated: IMEI={imei}, lat={lat}, lng={lng}")
+                        else:
+                            logs.append(f"Invalid positioning data: IMEI={imei}")
+
                     else:
                         logs.append(f"Unknown command type: {command_type}")
             except Exception as e:
@@ -62,22 +75,9 @@ def handle_client(client_socket, addr):
                 logs.append(f"Error: {e}")
                 break
 
-        # Clean up connection
-        if imei and imei in connections:
-            del connections[imei]
-
+# Coordinate conversion function
 def convert_coordinates(coord, hemisphere):
-    """
-    Convert GPS coordinates from ddmm.mmmm or dddmm.mmmm to WGS84 decimal format.
-
-    :param coord: str, coordinate in ddmm.mmmm or dddmm.mmmm format
-    :param hemisphere: str, 'N', 'S', 'E', 'W' indicating hemisphere
-    :return: float, decimal format of the coordinate
-    """
     try:
-        if not coord or not hemisphere:
-            raise ValueError(f"Invalid input: coord='{coord}', hemisphere='{hemisphere}'")
-
         if hemisphere in ['N', 'S']:
             degrees = int(coord[:2])
             minutes = float(coord[2:])
@@ -85,7 +85,7 @@ def convert_coordinates(coord, hemisphere):
             degrees = int(coord[:3])
             minutes = float(coord[3:])
         else:
-            raise ValueError(f"Invalid hemisphere: {hemisphere}")
+            raise ValueError("Invalid hemisphere")
 
         decimal = degrees + (minutes / 60)
         if hemisphere in ['S', 'W']:
@@ -99,37 +99,16 @@ def convert_coordinates(coord, hemisphere):
 # Flask Routes
 @app.route('/')
 def index():
-    return render_template('index.html')
-
-@app.route('/map-data')
-def map_data():
-    return jsonify(vehicles)
+    return jsonify({"status": "Server is running", "connected_devices": len(vehicles)})
 
 @app.route('/logs')
 def get_logs():
     return jsonify(logs[-50:])  # Last 50 logs
 
-@app.route('/send-command', methods=['POST'])
-def send_command():
-    imei = request.json.get('imei')
-    command = request.json.get('command')
+@app.route('/vehicles')
+def get_vehicles():
+    return jsonify(vehicles)
 
-    if not imei or not command:
-        return jsonify({"status": "error", "message": "IMEI and Command are required"}), 400
-
-    client_socket = connections.get(imei)
-    if not client_socket:
-        return jsonify({"status": "error", "message": f"No connection for IMEI {imei}"}), 404
-
-    try:
-        client_socket.sendall(f"{command}\n".encode('utf-8'))
-        logs.append(f"Command sent to IMEI {imei}: {command}")
-        return jsonify({"status": "success", "message": f"Command '{command}' sent to {imei}"}), 200
-    except Exception as e:
-        logs.append(f"Error sending command to {imei}: {e}")
-        return jsonify({"status": "error", "message": str(e)}), 500
-
-# Run Flask and TCP Server concurrently
 if __name__ == '__main__':
     threading.Thread(target=tcp_server, daemon=True).start()
     app.run(host=FLASK_HOST, port=FLASK_PORT)
