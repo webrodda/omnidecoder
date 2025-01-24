@@ -64,8 +64,15 @@ def handle_client(client_socket, addr):
                     connections[imei] = client_socket
                     command_type = parts[3]
 
-                    if command_type == 'D0':  # Positioning command
+                    if command_type in ['Q0', 'H0']:  # Registration or summary info
+                        vehicles[imei] = {'last_command': command_type}
+                        logs.append(f"Registered IMEI {imei} with command {command_type}")
+                    elif command_type == 'D0':  # Positioning command
                         try:
+                            if not parts[5].replace('.', '').isdigit() or not parts[7].replace('.', '').isdigit():
+                                logs.append(f"Invalid GPS format: {data}")
+                                continue
+
                             lat = convert_coordinates(parts[5], parts[6])
                             lng = convert_coordinates(parts[7], parts[8])
                         except ValueError as e:
@@ -94,28 +101,26 @@ def convert_coordinates(coord, hemisphere):
     :return: float, decimal format of the coordinate
     """
     try:
-        # Determine if it's latitude (ddmm.mmmm) or longitude (dddmm.mmmm)
-        if hemisphere in ['N', 'S']:  # Latitude
-            degrees = int(coord[:2])  # First 2 characters for latitude degrees
-            minutes = float(coord[2:])  # Rest are minutes
-        elif hemisphere in ['E', 'W']:  # Longitude
-            degrees = int(coord[:3])  # First 3 characters for longitude degrees
-            minutes = float(coord[3:])  # Rest are minutes
+        if not coord or not hemisphere:
+            raise ValueError(f"Invalid input: coord='{coord}', hemisphere='{hemisphere}'")
+
+        if hemisphere in ['N', 'S']:
+            degrees = int(coord[:2])
+            minutes = float(coord[2:])
+        elif hemisphere in ['E', 'W']:
+            degrees = int(coord[:3])
+            minutes = float(coord[3:])
         else:
             raise ValueError(f"Invalid hemisphere: {hemisphere}")
 
-        # Convert to decimal degrees
         decimal = degrees + (minutes / 60)
-
-        # Adjust for hemisphere
         if hemisphere in ['S', 'W']:
             decimal = -decimal
 
         return round(decimal, 6)
     except Exception as e:
-        print(f"Error in coordinate conversion: {e}")
+        logs.append(f"Coordinate conversion error: {e}")
         return None
-
 
 # Flask Routes
 @app.route('/')
