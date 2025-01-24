@@ -60,12 +60,16 @@ def handle_client(client_socket, addr):
                 break
 
 def convert_coordinates(coord, hemisphere):
-    degrees = int(coord[:2])
-    minutes = float(coord[2:])
-    decimal = degrees + minutes / 60
-    if hemisphere in ['S', 'W']:
-        decimal = -decimal
-    return decimal
+    try:
+        degrees = int(float(coord) // 100)
+        minutes = float(coord) - (degrees * 100)
+        decimal = degrees + minutes / 60
+        if hemisphere in ['S', 'W']:
+            decimal = -decimal
+        return round(decimal, 6)
+    except Exception as e:
+        print(f"Error in coordinate conversion: {e}")
+        return None
 
 # Flask Routes
 @app.route('/')
@@ -82,17 +86,13 @@ def get_logs():
 
 @app.route('/send-command', methods=['POST'])
 def send_command():
-    imei = request.json.get('imei')
     command = request.json.get('command')
 
-    if not imei or not command:
-        return jsonify({"status": "error", "message": "IMEI and Command are required"}), 400
+    if not command:
+        return jsonify({"status": "error", "message": "Command is required"}), 400
 
-    if imei not in vehicles:
-        return jsonify({"status": "error", "message": "IMEI not found"}), 404
-
-    logs.append(f"Command sent to {imei}: {command}")
-    return jsonify({"status": "success", "message": f"Command '{command}' sent to {imei}"}), 200
+    logs.append(f"Command sent: {command}")
+    return jsonify({"status": "success", "message": f"Command '{command}' sent"}), 200
 
 # Run Flask and TCP Server concurrently
 if __name__ == '__main__':
