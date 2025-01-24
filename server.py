@@ -69,15 +69,20 @@ def handle_client(client_socket, addr):
 
 def convert_coordinates(coord, hemisphere):
     try:
-        degrees = int(float(coord) / 100)
-        minutes = float(coord) - (degrees * 100)
-        decimal = degrees + minutes / 60
+        # Split the degrees and minutes from the coordinate
+        degrees = int(float(coord) // 100)  # Extract the degrees
+        minutes = float(coord) - (degrees * 100)  # Extract the minutes
+        decimal = degrees + (minutes / 60)  # Convert to decimal format
+
+        # Adjust for hemisphere
         if hemisphere in ['S', 'W']:
             decimal = -decimal
+
         return round(decimal, 6)
     except Exception as e:
         print(f"Error in coordinate conversion: {e}")
         return None
+
 
 # Flask Routes
 @app.route('/')
