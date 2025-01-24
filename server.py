@@ -14,6 +14,7 @@ app = Flask(__name__)
 # Global data store
 vehicles = {}  # {IMEI: {'lat': lat, 'lng': lng, 'last_command': cmd}}
 logs = []      # Keeps logs for web display
+connections = {}  # {IMEI: socket}
 
 # TCP Server Logic
 def tcp_server():
@@ -27,9 +28,10 @@ def tcp_server():
         threading.Thread(target=handle_client, args=(client_socket, addr)).start()
 
 def handle_client(client_socket, addr):
-    global vehicles, logs
+    global vehicles, logs, connections
     print(f"Connection from {addr}")
     logs.append(f"Connected: {addr}")
+    imei = None
 
     with client_socket:
         while True:
@@ -41,10 +43,14 @@ def handle_client(client_socket, addr):
                 print(f"Received: {data}")
                 logs.append(f"Received: {data}")
 
-                # Handle received commands (example: '*SCOR,OM,123456789123456,D0,...#')
                 if data.startswith("*SCOR"):
                     parts = data.split(',')
+                    if len(parts) < 9:
+                        logs.append(f"Malformed command received: {data}")
+                        continue
+
                     imei = parts[2]
+                    connections[imei] = client_socket
                     command_type = parts[3]
 
                     if command_type == 'D0':  # Positioning command
@@ -58,10 +64,12 @@ def handle_client(client_socket, addr):
                 print(f"Error: {e}")
                 logs.append(f"Error: {e}")
                 break
+        if imei:
+            del connections[imei]
 
 def convert_coordinates(coord, hemisphere):
     try:
-        degrees = int(float(coord) // 100)
+        degrees = int(float(coord) / 100)
         minutes = float(coord) - (degrees * 100)
         decimal = degrees + minutes / 60
         if hemisphere in ['S', 'W']:
@@ -86,13 +94,23 @@ def get_logs():
 
 @app.route('/send-command', methods=['POST'])
 def send_command():
+    imei = request.json.get('imei')
     command = request.json.get('command')
 
-    if not command:
-        return jsonify({"status": "error", "message": "Command is required"}), 400
+    if not imei or not command:
+        return jsonify({"status": "error", "message": "IMEI and Command are required"}), 400
 
-    logs.append(f"Command sent: {command}")
-    return jsonify({"status": "success", "message": f"Command '{command}' sent"}), 200
+    client_socket = connections.get(imei)
+    if not client_socket:
+        return jsonify({"status": "error", "message": f"No connection for IMEI {imei}"}), 404
+
+    try:
+        client_socket.sendall(f"{command}\n".encode('utf-8'))
+        logs.append(f"Command sent to IMEI {imei}: {command}")
+        return jsonify({"status": "success", "message": f"Command '{command}' sent to {imei}"}), 200
+    except Exception as e:
+        logs.append(f"Error sending command to {imei}: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 # Run Flask and TCP Server concurrently
 if __name__ == '__main__':
