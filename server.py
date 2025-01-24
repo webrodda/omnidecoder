@@ -27,62 +27,32 @@ def tcp_server():
         threading.Thread(target=handle_client, args=(client_socket, addr)).start()
 
 def handle_client(client_socket, addr):
-    global vehicles, logs, connections
+    global vehicles, logs
     print(f"Connection from {addr}")
     logs.append(f"Connected: {addr}")
-    imei = None
 
     with client_socket:
         while True:
             try:
-                # Receive and decode data
-                try:
-                    data = client_socket.recv(1024).decode('utf-8').strip()
-                except UnicodeDecodeError as e:
-                    logs.append(f"Decoding error from {addr}: {e}")
-                    break
-
+                data = client_socket.recv(1024).decode('utf-8').strip()
                 if not data:
                     break
 
                 print(f"Received: {data}")
                 logs.append(f"Received: {data}")
 
-                # Parse SCOR commands
+                # Send acknowledgment to client
+                client_socket.sendall(f"Command received: {data}\n".encode())
+
+                # Handle received commands (example: '*SCOR,OM,123456789123456,D0,...#')
                 if data.startswith("*SCOR"):
                     parts = data.split(',')
-                    if len(parts) < 9:
-                        logs.append(f"Malformed command from {addr}: {data}")
-                        continue
-
-                    imei = parts[2] if len(parts) > 2 and parts[2].isdigit() else None
-                    if not imei:
-                        logs.append(f"Invalid IMEI in command: {data}")
-                        continue
-
-                    # Add to connections
-                    connections[imei] = client_socket
+                    imei = parts[2]
                     command_type = parts[3]
 
-                    if command_type == 'Q0':  # Registration command
-                        vehicles[imei] = {'registered': True, 'last_command': command_type}
-                        logs.append(f"Device registered with IMEI {imei}")
-                    elif command_type == 'H0':  # Summary information
-                        vehicles[imei] = {'registered': True, 'last_command': command_type}
-                        logs.append(f"Summary info received for IMEI {imei}")
-
-                    elif command_type == 'D0':  # Positioning command
-                        try:
-                            if not parts[5].replace('.', '').isdigit() or not parts[7].replace('.', '').isdigit():
-                                logs.append(f"Invalid GPS format: {data}")
-                                continue
-
-                            lat = convert_coordinates(parts[5], parts[6])
-                            lng = convert_coordinates(parts[7], parts[8])
-                        except ValueError as e:
-                            logs.append(f"Invalid GPS coordinates from {imei}: {e}")
-                            continue
-
+                    if command_type == 'D0':  # Positioning command
+                        lat = convert_coordinates(parts[5], parts[6])
+                        lng = convert_coordinates(parts[7], parts[8])
                         vehicles[imei] = {'lat': lat, 'lng': lng, 'last_command': command_type}
                         logs.append(f"Updated IMEI {imei}: lat={lat}, lng={lng}")
                     else:
