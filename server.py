@@ -1,90 +1,100 @@
-from flask import Flask, render_template, request, jsonify, Response
 import socket
 import threading
-import time
+from flask import Flask, render_template, request, jsonify
+import folium
+
+# TCP and Flask settings
+TCP_HOST = '0.0.0.0'
+TCP_PORT = 6050
+FLASK_HOST = '0.0.0.0'
+FLASK_PORT = 5001
 
 app = Flask(__name__)
 
-TCP_IP = "0.0.0.0"
-TCP_PORT = 6050
-FLASK_PORT = 5001
+# Global data store
+vehicles = {}  # {IMEI: {'lat': lat, 'lng': lng, 'last_command': cmd}}
+logs = []      # Keeps logs for web display
 
-logs = []  # Список логов для отображения
-positions = {}  # Словарь для хранения координат по хостам
-
-def add_log(message):
-    """Добавить сообщение в логи."""
-    timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
-    log_message = f"[{timestamp}] {message}"
-    print(log_message)
-    logs.append(log_message)
-    if len(logs) > 100:  # Ограничиваем количество логов
-        logs.pop(0)
-
-# TCP сервер
-def start_tcp_server():
+# TCP Server Logic
+def tcp_server():
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind((TCP_IP, TCP_PORT))
+    server_socket.bind((TCP_HOST, TCP_PORT))
     server_socket.listen(5)
-    add_log(f"TCP Server started on {TCP_IP}:{TCP_PORT}")
+    print(f"TCP Server listening on port {TCP_PORT}")
+
     while True:
-        conn, addr = server_socket.accept()
-        data = conn.recv(1024).decode().strip()
-        add_log(f"Received from {addr}: {data}")
+        client_socket, addr = server_socket.accept()
+        threading.Thread(target=handle_client, args=(client_socket, addr)).start()
 
-        # Проверяем, являются ли данные координатами
-        try:
-            lat, lon = map(float, data.split(","))
-            positions[addr[0]] = {"lat": lat, "lon": lon}  # Обновляем позицию хоста
-            add_log(f"Updated position for {addr[0]}: {lat}, {lon}")
-        except ValueError:
-            add_log(f"Invalid data format: {data}")
+def handle_client(client_socket, addr):
+    global vehicles, logs
+    print(f"Connection from {addr}")
+    logs.append(f"Connected: {addr}")
 
-        conn.sendall(f"Command received: {data}\n".encode())
-        conn.close()
-
-@app.route("/")
-def index():
-    return render_template("index.html")
-
-@app.route("/logs")
-def stream_logs():
-    def generate_logs():
-        """Генератор для передачи логов в режиме реального времени."""
-        previous_length = 0
+    with client_socket:
         while True:
-            if len(logs) > previous_length:
-                for log in logs[previous_length:]:
-                    yield f"data: {log}\n\n"
-                previous_length = len(logs)
-            time.sleep(1)
+            try:
+                data = client_socket.recv(1024).decode('utf-8').strip()
+                if not data:
+                    break
 
-    return Response(generate_logs(), content_type="text/event-stream")
+                print(f"Received: {data}")
+                logs.append(f"Received: {data}")
 
-@app.route("/positions")
-def get_positions():
-    """Возвращает текущие позиции всех устройств."""
-    return jsonify(positions)
+                # Handle received commands (example: '*SCOR,OM,123456789123456,D0,...#')
+                if data.startswith("*SCOR"):
+                    parts = data.split(',')
+                    imei = parts[2]
+                    command_type = parts[3]
 
-@app.route("/send_command", methods=["POST"])
+                    if command_type == 'D0':  # Positioning command
+                        lat = convert_coordinates(parts[5], parts[6])
+                        lng = convert_coordinates(parts[7], parts[8])
+                        vehicles[imei] = {'lat': lat, 'lng': lng, 'last_command': command_type}
+                        logs.append(f"Updated IMEI {imei}: lat={lat}, lng={lng}")
+                    else:
+                        logs.append(f"Unknown command type: {command_type}")
+            except Exception as e:
+                print(f"Error: {e}")
+                logs.append(f"Error: {e}")
+                break
+
+def convert_coordinates(coord, hemisphere):
+    degrees = int(coord[:2])
+    minutes = float(coord[2:])
+    decimal = degrees + minutes / 60
+    if hemisphere in ['S', 'W']:
+        decimal = -decimal
+    return decimal
+
+# Flask Routes
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/map-data')
+def map_data():
+    return jsonify(vehicles)
+
+@app.route('/logs')
+def get_logs():
+    return jsonify(logs[-50:])  # Last 50 logs
+
+@app.route('/send-command', methods=['POST'])
 def send_command():
-    data = request.json
-    command = data.get("command")
-    if not command:
-        return jsonify({"message": "Нет команды для отправки"}), 400
+    imei = request.json.get('imei')
+    command = request.json.get('command')
 
-    try:
-        # Отправляем TCP команду
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as tcp_client:
-            tcp_client.connect((TCP_IP, TCP_PORT))
-            tcp_client.sendall(command.encode())
-            response = tcp_client.recv(1024).decode()
-        add_log(f"Sent command: {command}")
-        return jsonify({"message": f"Ответ от устройства: {response}"})
-    except Exception as e:
-        add_log(f"Ошибка отправки команды: {str(e)}")
-        return jsonify({"message": f"Ошибка: {str(e)}"}), 500
+    if not imei or not command:
+        return jsonify({"status": "error", "message": "IMEI and Command are required"}), 400
 
-if __name__ == "__main__":
-    threading.Thread(target=start_tcp_server, daemon=True).start()
-    app.run(host="0.0.0.0", port=FLASK_PORT)
+    if imei not in vehicles:
+        return jsonify({"status": "error", "message": "IMEI not found"}), 404
+
+    logs.append(f"Command sent to {imei}: {command}")
+    return jsonify({"status": "success", "message": f"Command '{command}' sent to {imei}"}), 200
+
+# Run Flask and TCP Server concurrently
+if __name__ == '__main__':
+    threading.Thread(target=tcp_server, daemon=True).start()
+    app.run(host=FLASK_HOST, port=FLASK_PORT)
