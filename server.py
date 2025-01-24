@@ -28,14 +28,20 @@ def tcp_server():
 
 def handle_client(client_socket, addr):
     global vehicles, logs, connections
-    print(f"Connected: {addr}")
+    print(f"Connection from {addr}")
     logs.append(f"Connected: {addr}")
     imei = None
 
     with client_socket:
         while True:
             try:
-                data = client_socket.recv(1024).decode('utf-8').strip()
+                # Receive and decode data
+                try:
+                    data = client_socket.recv(1024).decode('utf-8').strip()
+                except UnicodeDecodeError as e:
+                    logs.append(f"Decoding error from {addr}: {e}")
+                    break
+
                 if not data:
                     break
 
@@ -45,11 +51,17 @@ def handle_client(client_socket, addr):
                 # Parse SCOR commands
                 if data.startswith("*SCOR"):
                     parts = data.split(',')
-                    if len(parts) < 13:
-                        logs.append(f"Malformed command received: {data}")
+                    if len(parts) < 9:
+                        logs.append(f"Malformed command from {addr}: {data}")
                         continue
 
-                    imei = parts[2]
+                    imei = parts[2] if len(parts) > 2 and parts[2].isdigit() else None
+                    if not imei:
+                        logs.append(f"Invalid IMEI in command: {data}")
+                        continue
+
+                    # Add to connections
+                    connections[imei] = client_socket
                     command_type = parts[3]
 
                     if command_type == 'D0':  # Positioning command
@@ -57,7 +69,7 @@ def handle_client(client_socket, addr):
                             lat = convert_coordinates(parts[5], parts[6])
                             lng = convert_coordinates(parts[7], parts[8])
                         except ValueError as e:
-                            logs.append(f"Error converting coordinates: {e}")
+                            logs.append(f"Invalid GPS coordinates from {imei}: {e}")
                             continue
 
                         vehicles[imei] = {'lat': lat, 'lng': lng, 'last_command': command_type}
@@ -65,6 +77,7 @@ def handle_client(client_socket, addr):
                     else:
                         logs.append(f"Unknown command type: {command_type}")
             except Exception as e:
+                print(f"Error: {e}")
                 logs.append(f"Error: {e}")
                 break
 
