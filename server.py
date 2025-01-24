@@ -1,7 +1,6 @@
 import socket
 import threading
 from flask import Flask, render_template, request, jsonify
-import folium
 
 # TCP and Flask settings
 TCP_HOST = '0.0.0.0'
@@ -29,20 +28,14 @@ def tcp_server():
 
 def handle_client(client_socket, addr):
     global vehicles, logs, connections
-    print(f"Connection from {addr}")
+    print(f"Connected: {addr}")
     logs.append(f"Connected: {addr}")
     imei = None
 
     with client_socket:
         while True:
             try:
-                # Receive and decode data
-                try:
-                    data = client_socket.recv(1024).decode('utf-8').strip()
-                except UnicodeDecodeError as e:
-                    logs.append(f"Decoding error from {addr}: {e}")
-                    break
-
+                data = client_socket.recv(1024).decode('utf-8').strip()
                 if not data:
                     break
 
@@ -52,17 +45,11 @@ def handle_client(client_socket, addr):
                 # Parse SCOR commands
                 if data.startswith("*SCOR"):
                     parts = data.split(',')
-                    if len(parts) < 9:
-                        logs.append(f"Malformed command from {addr}: {data}")
+                    if len(parts) < 13:
+                        logs.append(f"Malformed command received: {data}")
                         continue
 
-                    imei = parts[2] if len(parts) > 2 and parts[2].isdigit() else None
-                    if not imei:
-                        logs.append(f"Invalid IMEI in command: {data}")
-                        continue
-
-                    # Add to connections
-                    connections[imei] = client_socket
+                    imei = parts[2]
                     command_type = parts[3]
 
                     if command_type == 'D0':  # Positioning command
@@ -70,7 +57,7 @@ def handle_client(client_socket, addr):
                             lat = convert_coordinates(parts[5], parts[6])
                             lng = convert_coordinates(parts[7], parts[8])
                         except ValueError as e:
-                            logs.append(f"Invalid GPS coordinates from {imei}: {e}")
+                            logs.append(f"Error converting coordinates: {e}")
                             continue
 
                         vehicles[imei] = {'lat': lat, 'lng': lng, 'last_command': command_type}
@@ -78,7 +65,6 @@ def handle_client(client_socket, addr):
                     else:
                         logs.append(f"Unknown command type: {command_type}")
             except Exception as e:
-                print(f"Error: {e}")
                 logs.append(f"Error: {e}")
                 break
 
@@ -87,11 +73,26 @@ def handle_client(client_socket, addr):
             del connections[imei]
 
 def convert_coordinates(coord, hemisphere):
+    """
+    Convert GPS coordinates from ddmm.mmmm or dddmm.mmmm to WGS84 decimal format.
+
+    :param coord: str, coordinate in ddmm.mmmm or dddmm.mmmm format
+    :param hemisphere: str, 'N', 'S', 'E', 'W' indicating hemisphere
+    :return: float, decimal format of the coordinate
+    """
     try:
-        # Split the degrees and minutes from the coordinate
-        degrees = int(float(coord) // 100)  # Extract the degrees
-        minutes = float(coord) - (degrees * 100)  # Extract the minutes
-        decimal = degrees + (minutes / 60)  # Convert to decimal format
+        # Determine if it's latitude (ddmm.mmmm) or longitude (dddmm.mmmm)
+        if hemisphere in ['N', 'S']:  # Latitude
+            degrees = int(coord[:2])  # First 2 characters for latitude degrees
+            minutes = float(coord[2:])  # Rest are minutes
+        elif hemisphere in ['E', 'W']:  # Longitude
+            degrees = int(coord[:3])  # First 3 characters for longitude degrees
+            minutes = float(coord[3:])  # Rest are minutes
+        else:
+            raise ValueError(f"Invalid hemisphere: {hemisphere}")
+
+        # Convert to decimal degrees
+        decimal = degrees + (minutes / 60)
 
         # Adjust for hemisphere
         if hemisphere in ['S', 'W']:
