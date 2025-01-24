@@ -64,9 +64,13 @@ def handle_client(client_socket, addr):
                     connections[imei] = client_socket
                     command_type = parts[3]
 
-                    if command_type in ['Q0', 'H0']:  # Registration or summary info
-                        vehicles[imei] = {'last_command': command_type}
-                        logs.append(f"Registered IMEI {imei} with command {command_type}")
+                    if command_type == 'Q0':  # Registration command
+                        vehicles[imei] = {'registered': True, 'last_command': command_type}
+                        logs.append(f"Device registered with IMEI {imei}")
+                    elif command_type == 'H0':  # Summary information
+                        vehicles[imei] = {'registered': True, 'last_command': command_type}
+                        logs.append(f"Summary info received for IMEI {imei}")
+
                     elif command_type == 'D0':  # Positioning command
                         try:
                             if not parts[5].replace('.', '').isdigit() or not parts[7].replace('.', '').isdigit():
