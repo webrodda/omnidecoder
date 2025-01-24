@@ -1,0 +1,71 @@
+2025-01-24 20:50:58 [INFO] Starting TCP server on 0.0.0.0:5005
+2025-01-24 20:50:58 [INFO] Starting web server on port 5000
+2025-01-24 20:50:58 [INFO] TCP server is listening for connections...
+2025-01-24 20:51:06 [INFO] Starting TCP server on 0.0.0.0:5005
+2025-01-24 20:51:06 [INFO] Starting web server on port 5000
+2025-01-24 20:51:06 [INFO] TCP server is listening for connections...
+2025-01-24 20:51:20 [INFO] Starting TCP server on 0.0.0.0:5005
+2025-01-24 20:51:20 [INFO] Starting web server on port 5001
+2025-01-24 20:51:20 [INFO] TCP server is listening for connections...
+2025-01-24 20:51:20 [INFO] [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5001
+ * Running on http://10.110.32.74:5001
+2025-01-24 20:51:20 [INFO] [33mPress CTRL+C to quit[0m
+2025-01-24 20:51:29 [INFO] 127.0.0.1 - - [24/Jan/2025 20:51:29] "GET / HTTP/1.1" 200 -
+2025-01-24 20:51:29 [INFO] 127.0.0.1 - - [24/Jan/2025 20:51:29] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-01-24 20:51:30 [INFO] 127.0.0.1 - - [24/Jan/2025 20:51:30] "GET / HTTP/1.1" 200 -
+2025-01-24 20:51:30 [INFO] 127.0.0.1 - - [24/Jan/2025 20:51:30] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-01-24 20:53:24 [INFO] New connection from ('127.0.0.1', 55614)
+2025-01-24 20:55:35 [INFO] Starting TCP server on 0.0.0.0:5005
+2025-01-24 20:55:35 [INFO] Starting web server on port 5001
+2025-01-24 20:55:35 [INFO] TCP server is listening for connections...
+2025-01-24 20:55:35 [INFO] [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5001
+ * Running on http://10.110.32.74:5001
+2025-01-24 20:55:35 [INFO] [33mPress CTRL+C to quit[0m
+2025-01-24 20:55:41 [INFO] 127.0.0.1 - - [24/Jan/2025 20:55:41] "GET / HTTP/1.1" 200 -
+2025-01-24 20:55:41 [INFO] 127.0.0.1 - - [24/Jan/2025 20:55:41] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-01-24 20:55:42 [INFO] 127.0.0.1 - - [24/Jan/2025 20:55:42] "GET / HTTP/1.1" 200 -
+2025-01-24 20:55:43 [INFO] 127.0.0.1 - - [24/Jan/2025 20:55:43] "GET / HTTP/1.1" 200 -
+2025-01-24 20:55:44 [INFO] 127.0.0.1 - - [24/Jan/2025 20:55:44] "GET / HTTP/1.1" 200 -
+2025-01-24 20:55:44 [INFO] 127.0.0.1 - - [24/Jan/2025 20:55:44] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-01-24 20:56:27 [INFO] 127.0.0.1 - - [24/Jan/2025 20:56:27] "GET / HTTP/1.1" 200 -
+2025-01-24 20:56:28 [INFO] 127.0.0.1 - - [24/Jan/2025 20:56:28] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-01-24 20:56:28 [INFO] 127.0.0.1 - - [24/Jan/2025 20:56:28] "GET / HTTP/1.1" 200 -
+2025-01-24 20:56:29 [INFO] 127.0.0.1 - - [24/Jan/2025 20:56:29] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-01-24 20:56:30 [INFO] 127.0.0.1 - - [24/Jan/2025 20:56:30] "GET / HTTP/1.1" 200 -
+2025-01-24 20:56:30 [INFO] 127.0.0.1 - - [24/Jan/2025 20:56:30] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-01-24 20:57:33 [INFO] 127.0.0.1 - - [24/Jan/2025 20:57:33] "GET / HTTP/1.1" 200 -
+2025-01-24 20:57:33 [INFO] 127.0.0.1 - - [24/Jan/2025 20:57:33] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-01-24 20:57:34 [INFO] 127.0.0.1 - - [24/Jan/2025 20:57:34] "GET / HTTP/1.1" 200 -
+2025-01-24 20:57:34 [INFO] 127.0.0.1 - - [24/Jan/2025 20:57:34] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-01-24 20:57:38 [INFO] Starting TCP server on 0.0.0.0:5005
+2025-01-24 20:57:38 [INFO] Starting web server on port 5000
+2025-01-24 20:57:38 [INFO] TCP server is listening for connections...
+2025-01-24 20:57:46 [INFO] Starting TCP server on 0.0.0.0:5005
+2025-01-24 20:57:46 [INFO] Starting web server on port 5001
+2025-01-24 20:57:46 [INFO] TCP server is listening for connections...
+2025-01-24 20:57:46 [INFO] [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5001
+ * Running on http://10.110.32.74:5001
+2025-01-24 20:57:46 [INFO] [33mPress CTRL+C to quit[0m
+2025-01-24 20:57:48 [INFO] 127.0.0.1 - - [24/Jan/2025 20:57:48] "GET / HTTP/1.1" 200 -
+2025-01-24 20:57:49 [INFO] 127.0.0.1 - - [24/Jan/2025 20:57:49] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-01-24 20:57:57 [INFO] 127.0.0.1 - - [24/Jan/2025 20:57:57] "GET / HTTP/1.1" 200 -
+2025-01-24 20:57:59 [INFO] 127.0.0.1 - - [24/Jan/2025 20:57:59] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-01-24 20:58:25 [INFO] New connection from ('127.0.0.1', 55640)
+2025-01-24 20:58:25 [INFO] Received data from ('127.0.0.1', 55640): 43.256,76.928
+2025-01-24 20:58:25 [INFO] Added coordinates: 43.256, 76.928
+2025-01-24 20:58:54 [INFO] Starting TCP server on 0.0.0.0:5005
+2025-01-24 20:58:54 [INFO] Starting web server on port 5001
+2025-01-24 20:58:54 [INFO] TCP server is listening for connections...
+2025-01-24 20:58:54 [INFO] [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5001
+ * Running on http://10.110.32.74:5001
+2025-01-24 20:58:54 [INFO] [33mPress CTRL+C to quit[0m
+2025-01-24 20:58:59 [INFO] 127.0.0.1 - - [24/Jan/2025 20:58:59] "GET / HTTP/1.1" 200 -
+2025-01-24 20:59:02 [INFO] 127.0.0.1 - - [24/Jan/2025 20:59:02] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -

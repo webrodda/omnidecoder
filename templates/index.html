@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Omni IoT Tracker</title>
+
+    <!-- Подключение шрифта -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap"
+        rel="stylesheet"
+    />
+
+    <!-- Подключение Leaflet -->
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <script
+        src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    ></script>
+
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
+        }
+
+        #map {
+            width: 100%;
+            height: 500px;
+        }
+
+        #controls {
+            padding: 20px;
+            text-align: center;
+        }
+
+        input[type="text"] {
+            width: 300px;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+        }
+
+        button {
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #logs {
+            margin-top: 20px;
+            padding: 20px;
+            background: #ffffff;
+            border: 1px solid #ced4da;
+            height: 200px;
+            overflow-y: scroll;
+        }
+
+        h1 {
+            text-align: center;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Omni IoT Tracker</h1>
+
+    <div id="map"></div>
+
+    <div id="controls">
+        <input type="text" id="tcpCommand" placeholder="Введите TCP команду" />
+        <button onclick="sendCommand()">Отправить команду</button>
+    </div>
+
+    <div id="logs">
+        <h3>Логи</h3>
+        <pre id="logOutput"></pre>
+    </div>
+
+    <script>
+        // Инициализация карты
+        const map = L.map("map").setView([43.222, 76.851], 13); // Центр Алматы
+
+        // Добавляем слой карты
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap contributors',
+        }).addTo(map);
+
+        const markers = {}; // Маркеры для каждого хоста
+
+        // Обновление позиций на карте
+        function updatePositions() {
+            fetch("/positions")
+                .then((response) => response.json())
+                .then((data) => {
+                    for (const [host, pos] of Object.entries(data)) {
+                        if (markers[host]) {
+                            // Обновляем существующий маркер
+                            markers[host].setLatLng([pos.lat, pos.lon]);
+                        } else {
+                            // Создаем новый маркер
+                            markers[host] = L.marker([pos.lat, pos.lon])
+                                .addTo(map)
+                                .bindPopup(`Host: ${host}`);
+                        }
+                    }
+                })
+                .catch((error) => console.error("Ошибка загрузки позиций:", error));
+        }
+
+        // Отправка команды
+        function sendCommand() {
+            const command = document.getElementById("tcpCommand").value;
+            if (!command) {
+                alert("Введите команду!");
+                return;
+            }
+
+            fetch("/send_command", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ command }),
+            })
+                .then((response) => response.json())
+                .then((data) => {
+                    alert(data.message);
+                })
+                .catch((error) => {
+                    console.error("Ошибка:", error);
+                });
+        }
+
+        // Получение логов в реальном времени
+        const logOutput = document.getElementById("logOutput");
+        const eventSource = new EventSource("/logs");
+        eventSource.onmessage = (event) => {
+            logOutput.textContent += event.data + "\n";
+            logOutput.scrollTop = logOutput.scrollHeight;
+        };
+
+        // Обновляем позиции каждые 2 секунды
+        setInterval(updatePositions, 2000);
+    </script>
+</body>
+</html>
