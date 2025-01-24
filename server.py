@@ -36,26 +36,43 @@ def handle_client(client_socket, addr):
     with client_socket:
         while True:
             try:
-                data = client_socket.recv(1024).decode('utf-8').strip()
+                # Receive and decode data
+                try:
+                    data = client_socket.recv(1024).decode('utf-8').strip()
+                except UnicodeDecodeError as e:
+                    logs.append(f"Decoding error from {addr}: {e}")
+                    break
+
                 if not data:
                     break
 
                 print(f"Received: {data}")
                 logs.append(f"Received: {data}")
 
+                # Parse SCOR commands
                 if data.startswith("*SCOR"):
                     parts = data.split(',')
                     if len(parts) < 9:
-                        logs.append(f"Malformed command received: {data}")
+                        logs.append(f"Malformed command from {addr}: {data}")
                         continue
 
-                    imei = parts[2]
+                    imei = parts[2] if len(parts) > 2 and parts[2].isdigit() else None
+                    if not imei:
+                        logs.append(f"Invalid IMEI in command: {data}")
+                        continue
+
+                    # Add to connections
                     connections[imei] = client_socket
                     command_type = parts[3]
 
                     if command_type == 'D0':  # Positioning command
-                        lat = convert_coordinates(parts[5], parts[6])
-                        lng = convert_coordinates(parts[7], parts[8])
+                        try:
+                            lat = convert_coordinates(parts[5], parts[6])
+                            lng = convert_coordinates(parts[7], parts[8])
+                        except ValueError as e:
+                            logs.append(f"Invalid GPS coordinates from {imei}: {e}")
+                            continue
+
                         vehicles[imei] = {'lat': lat, 'lng': lng, 'last_command': command_type}
                         logs.append(f"Updated IMEI {imei}: lat={lat}, lng={lng}")
                     else:
@@ -64,7 +81,9 @@ def handle_client(client_socket, addr):
                 print(f"Error: {e}")
                 logs.append(f"Error: {e}")
                 break
-        if imei:
+
+        # Clean up connection
+        if imei and imei in connections:
             del connections[imei]
 
 def convert_coordinates(coord, hemisphere):
